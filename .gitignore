@@ -205,3 +205,23 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# test için kullandığımız büyük ses dosyaları (GitHub'a yüklenmemeli)
+*.mp3
+*.wav
+*.m4a
+*.flac
+
+# Groq API anahtarını saklayacağımız dosya (Güvenlik için ÇOK KRİTİK)
+.env
+
+# Eğer Whisper modellerini proje klasörüne indirirsek (Boyutları çok büyük)
+models/
+*.bin
+*.pt
+
+# Çıktı olarak üretilen metin veya PDF dosyaları
+outputs/
+*.pdf
+*.docx
+*.txt
