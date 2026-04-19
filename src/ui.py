@@ -7,9 +7,17 @@ import os
 import sys
 
 mevcut_dizin = os.path.dirname(os.path.abspath(__file__))
+os.chdir(mevcut_dizin)
+print("\n--- KLASÖRDEKİ GERÇEK DOSYALAR ---")
+print(os.listdir(mevcut_dizin))
+print("----------------------------------\n")
 os.environ["PATH"] = mevcut_dizin + os.pathsep + os.environ["PATH"]
-if mevcut_dizin not in os.environ["PATH"]:
-    os.environ["PATH"] += os.pathsep + mevcut_dizin
+
+
+if not os.path.exists("ffmpeg.exe"):
+    print("\n" + "="*50)
+    print("KRİTİK HATA: ffmpeg.exe bu klasörde BULUNAMADI!")
+    print("="*50 + "\n")
 
 app = ctk.CTk()
 
@@ -32,6 +40,8 @@ def yapay_zeka_calistir(dosya_yolu):
         sonuc = model.transcribe(dosya_yolu, fp16=False, language="tr") 
         
         tam_metin = sonuc["text"].strip()
+        txt_desifre.delete("0.0", "end") 
+        txt_desifre.insert("0.0", tam_metin)
         
         lbl_dosya_adi.configure(text="Deşifre başarıyla tamamlandı!", text_color="#7aa2f7")
         
@@ -42,12 +52,6 @@ def yapay_zeka_calistir(dosya_yolu):
 
     btn_sec.configure(state="normal", text="DOSYA SEÇ", fg_color="#7aa2f7")
 
-def islemi_arka_planda_baslat(dosya_yolu):
-    thread = threading.Thread(target=yapay_zeka_calistir, args=(dosya_yolu,))
-    thread.start()
-    
-    btn_sec.configure(state="normal", text="DOSYA SEÇ", fg_color="#7aa2f7")
-        
 
 
 def islemi_arka_planda_baslat(dosya_yolu):
@@ -97,9 +101,12 @@ txt_desifre = ctk.CTkTextbox(
     border_color="#333333", 
     border_width=1, 
     text_color="#a9b1d6",
-    corner_radius=4
+    corner_radius=4,
+    wrap="word",         
+    font=("Segoe UI", 13) 
 )
 txt_desifre.pack(fill="both", expand=True)
+txt_desifre._textbox.configure(padx=15, pady=15)
 
 lbl_desifre_placeholder = ctk.CTkLabel(txt_desifre, text="ses deşifre metni", text_color="#454b68", font=("Segoe UI", 11, "italic"))
 lbl_desifre_placeholder.place(x=10, y=5) 
