@@ -7,48 +7,41 @@ import os
 import sys
 
 mevcut_dizin = os.path.dirname(os.path.abspath(__file__))
-os.environ["PATH"] += os.pathsep + mevcut_dizin
+os.environ["PATH"] = mevcut_dizin + os.pathsep + os.environ["PATH"]
+if mevcut_dizin not in os.environ["PATH"]:
+    os.environ["PATH"] += os.pathsep + mevcut_dizin
 
 app = ctk.CTk()
 
 def yapay_zeka_calistir(dosya_yolu):
-    # 1. DOSYA YOLUNU KONTROL ET VE DÜZELT
-    # Windows'taki ters eğik çizgi (\) sorunlarını Python'ın anlayacağı hale getirir
+
     dosya_yolu = os.path.normpath(dosya_yolu)
     
     if not os.path.exists(dosya_yolu):
         lbl_dosya_adi.configure(text="Hata: Seçilen dosya diskte bulunamadı!", text_color="#f44336")
         return
 
-    # 2. BUTONU KİLİTLE (İşlem bitene kadar dokunulmaz yap)
+
     btn_sec.configure(state="disabled", text="İŞLENİYOR...", fg_color="#2d2e37")
     lbl_dosya_adi.configure(text="Yapay zeka sesi dinliyor... (Bekleyin)", text_color="#bb9af7")
     
     try:
-        # 3. WHISPER MODELİNİ ÇALIŞTIR
-        # 'base' model hem hızlıdır hem de Türkçe'de başarılıdır.
-        # fp16=False: Windows'ta bazı ekran kartı uyum hatalarını önler.
+
         model = whisper.load_model("base")
-        sonuc = model.transcribe(dosya_yolu, fp16=False)
         
-        tam_metin = sonuc["text"].strip() # Başındaki sonundaki boşlukları siler
+        sonuc = model.transcribe(dosya_yolu, fp16=False, language="tr") 
         
-        # 4. ARAYÜZÜ GÜNCELLE
-        # Ana metin kutusunu temizleyip yeni metni ekliyoruz
-        txt_desifre.delete("0.0", "end") 
-        txt_desifre.insert("0.0", tam_metin)
+        tam_metin = sonuc["text"].strip()
         
         lbl_dosya_adi.configure(text="Deşifre başarıyla tamamlandı!", text_color="#7aa2f7")
         
     except Exception as e:
-        # Bir hata olursa terminale detayı yazdır, kullanıcıya hata mesajı ver
+
         print(f"Sistem Hatası: {e}")
         lbl_dosya_adi.configure(text="Ses işlenirken bir hata oluştu!", text_color="#f44336")
-    
-    # 5. İŞLEM BİTTİĞİNDE BUTONU GERİ AÇ
+
     btn_sec.configure(state="normal", text="DOSYA SEÇ", fg_color="#7aa2f7")
 
-# Bu fonksiyon butona tıklandığında UI donmasın diye işlemi arka plana atar
 def islemi_arka_planda_baslat(dosya_yolu):
     thread = threading.Thread(target=yapay_zeka_calistir, args=(dosya_yolu,))
     thread.start()
