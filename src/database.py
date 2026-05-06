@@ -23,3 +23,27 @@ def create_tables():
 
     conn.commit()
     conn.close()
+
+
+def add_record(dosya_adi, metin_icerigi, ozet_metni):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT INTO kayitlar (dosya_adi, metin_icerigi, ozet_metni, olusturma_tarihi)
+    VALUES (?, ?, ?, ?)
+    """, (dosya_adi, metin_icerigi, ozet_metni, datetime.now()))
+
+    conn.commit()
+    conn.close()
+
+
+def get_all_records():
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM kayitlar ORDER BY olusturma_tarihi DESC")
+    data = cursor.fetchall()
+
+    conn.close()
+    return data
