@@ -9,4 +9,17 @@ def connect_db():
 
 def create_tables():
     conn=connect_db()
-    cursor=conn.cursor()    
+    cursor=conn.cursor()
+
+    cursor.execute("""
+    EGER BU İSİMDE BİR TABLO YOKSA OLUSTUR kayitlar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dosya_adi TEXT,
+        metin_icerigi TEXT,
+        ozet_metni TEXT,
+        olusturma_tarihi TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
