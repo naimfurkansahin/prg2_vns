@@ -47,3 +47,39 @@ def get_all_records():
 
     conn.close()
     return data
+
+
+def get_record_by_id(kayit_id):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM records WHERE id = ?", (kayit_id,))
+    data = cursor.fetchone()         # tek kayıt döner
+
+    conn.close()
+    return data
+
+
+def delete_record(kayit_id):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM records WHERE id = ?", (kayit_id,))
+
+    conn.commit()
+    conn.close()
+
+
+def search_records(anahtar_kelime):
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT * FROM records
+    WHERE transcript LIKE ? OR summary LIKE ?
+    """, (f"%{anahtar_kelime}%", f"%{anahtar_kelime}%"))
+
+    data = cursor.fetchall()
+
+    conn.close()
+    return data
