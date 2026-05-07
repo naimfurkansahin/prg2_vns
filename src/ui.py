@@ -6,6 +6,9 @@ import threading
 import os
 import sys
 from datetime import datetime
+from dotenv import load_dotenv
+from engine import VNSEngine
+import json
 
 mevcut_dizin = os.path.dirname(os.path.abspath(__file__))
 os.chdir(mevcut_dizin)
@@ -20,9 +23,62 @@ if not os.path.exists("ffmpeg.exe"):
     print("KRİTİK HATA: ffmpeg.exe bu klasörde BULUNAMADI!")
     print("="*50 + "\n")
 
+load_dotenv()
+API_KEY = os.environ.get("GROQ_API_KEY")
+
+if API_KEY:
+    vns_motoru = VNSEngine(groq_api_key=API_KEY)
+else:
+    print("HATA: .env dosyasında API anahtarı bulunamadı!")
+
 app = ctk.CTk()
 gecmis_hafizasi = {} 
 islem_sayaci = 0
+
+
+HAFIZA_DOSYASI = "vns_gecmis.json"
+
+def hafizayi_diske_kaydet():
+    
+    try:
+        with open(HAFIZA_DOSYASI, "w", encoding="utf-8") as f:
+            json.dump(gecmis_hafizasi, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Hafıza kaydedilemedi: {e}")
+
+def hafizayi_diskten_yukle():
+    
+    global gecmis_hafizasi, islem_sayaci
+    if os.path.exists(HAFIZA_DOSYASI):
+        try:
+            with open(HAFIZA_DOSYASI, "r", encoding="utf-8") as f:
+                yuklenen_veri = json.load(f)
+                
+              
+                gecmis_hafizasi = {int(k): v for k, v in yuklenen_veri.items()}
+                
+                if gecmis_hafizasi:
+                    islem_sayaci = max(gecmis_hafizasi.keys()) 
+                    
+                   
+                    for islem_id, kayit in gecmis_hafizasi.items():
+                        dosya_adi = kayit.get("dosya_adi", "Bilinmeyen Dosya")
+                        
+                        saat_bilgisi = kayit.get("saat", "")
+                        buton_metni = f"▶ [{saat_bilgisi}] {dosya_adi}" if saat_bilgisi else f"▶ {dosya_adi}"
+                        
+                        btn_kayit = ctk.CTkButton(
+                            liste_gecmis,
+                            text=buton_metni,
+                            anchor="w",
+                            fg_color="#2d2e37",
+                            hover_color="#3d59a1",
+                            text_color="#a9b1d6",
+                            command=lambda id=islem_id: gecmis_detaya_git(id)
+                        )
+                        btn_kayit.pack(fill="x", pady=5)
+        except Exception as e:
+            print(f"Hafıza yüklenirken hata: {e}")
 
 def gecmis_detaya_git(islem_id):
     
@@ -44,42 +100,76 @@ def gecmis_detaya_git(islem_id):
     
     lbl_dosya_adi.configure(text=f"Geçmiş Gösteriliyor: {kayit['dosya_adi']}", text_color="#bb9af7")
 
-def yapay_zeka_calistir(dosya_yolu , islem_id):
+def gecmisi_filtrele(*args):
+    aranan = arama_kutusu.get().lower()
+    
+    
+    for widget in liste_gecmis.winfo_children():
+        widget.destroy()
+    
+    
+    for islem_id, kayit in gecmis_hafizasi.items():
+        dosya_adi = kayit.get("dosya_adi", "Bilinmeyen Dosya")
+        
+    if aranan in dosya_adi.lower(): 
+            saat_bilgisi = kayit.get("saat", "")
+            buton_metni = f"▶ [{saat_bilgisi}] {dosya_adi}" if saat_bilgisi else f"▶ {dosya_adi}"
+            
+            btn_kayit = ctk.CTkButton(
+                liste_gecmis, text=buton_metni, anchor="w",
+                fg_color="#2d2e37", hover_color="#3d59a1", text_color="#a9b1d6",
+                command=lambda id=islem_id: gecmis_detaya_git(id)
+            )
+            btn_kayit.pack(fill="x", pady=5)
 
+def yapay_zeka_calistir(dosya_yolu, islem_id):
     dosya_yolu = os.path.normpath(dosya_yolu)
     
     if not os.path.exists(dosya_yolu):
         lbl_dosya_adi.configure(text="Hata: Seçilen dosya diskte bulunamadı!", text_color="#f44336")
         return
 
-
     btn_sec.configure(state="disabled", text="İŞLENİYOR...", fg_color="#2d2e37")
-    lbl_dosya_adi.configure(text="Yapay zeka sesi dinliyor... (Bekleyin)", text_color="#bb9af7")
     progress_bar.pack(side="left", padx=10)
     progress_bar.start()
-    try:
 
-        model = whisper.load_model("base")
-        sonuc = model.transcribe(dosya_yolu, fp16=False, language="tr") 
-        tam_metin = sonuc["text"].strip()
-        gecmis_hafizasi[islem_id]["desifre"] = tam_metin
+    try:
+      
+        lbl_dosya_adi.configure(text="1/2: Yapay zeka sesi dinliyor... (Bekleyin)", text_color="#bb9af7")
+        
+        tam_metin = vns_motoru.transcribe_audio(dosya_yolu) 
+        gecmis_hafizasi[islem_id]["desifre"] = tam_metin 
+        
         txt_desifre.configure(state="normal")
         txt_desifre.delete("0.0", "end") 
         txt_desifre.insert("0.0", tam_metin)
         txt_desifre.configure(state="disabled")
         
-        lbl_dosya_adi.configure(text="Deşifre başarıyla tamamlandı!", text_color="#7aa2f7")
+       
+        lbl_dosya_adi.configure(text="2/2: Metin özetleniyor... Llama 3 devrede!", text_color="#f7768e")
         
-    except Exception as e:
+        ozet_metni = vns_motoru.analyze_text(tam_metin)
+        gecmis_hafizasi[islem_id]["ozet"] = ozet_metni 
+        
+        txt_ozet.configure(state="normal")
+        txt_ozet.delete("0.0", "end")
+        txt_ozet.insert("0.0", ozet_metni)
+        txt_ozet.configure(state="disabled")
+        
+        lbl_dosya_adi.configure(text="İşlem başarıyla tamamlandı!", text_color="#7aa2f7")
+        
+       
+        hafizayi_diske_kaydet()
 
+    except Exception as e:
         print(f"Sistem Hatası: {e}")
-        lbl_dosya_adi.configure(text="Ses işlenirken bir hata oluştu!", text_color="#f44336")
+        lbl_dosya_adi.configure(text="İşlem sırasında bir hata oluştu!", text_color="#f44336")
+        
+    
     progress_bar.stop()
     progress_bar.set(0)
     progress_bar.pack_forget()
-    
     btn_sec.configure(state="normal", text="DOSYA SEÇ", fg_color="#7aa2f7")
-
 
 
 def islemi_arka_planda_baslat(dosya_yolu , islem_id):
@@ -123,6 +213,13 @@ def metni_kaydet():
         except Exception as e:
             lbl_dosya_adi.configure(text="Kayıt sırasında hata oluştu!", text_color="#f44336")
 
+def tema_degistir():
+    if switch_tema.get() == 1:
+        ctk.set_appearance_mode("light")
+        switch_tema.configure(text="🌙 Karanlık Tema")
+    else:
+        ctk.set_appearance_mode("dark")
+        switch_tema.configure(text="🌞 Aydınlık Tema")
 def dosya_secici():
     
     dosya_yolu = filedialog.askopenfilename(
@@ -140,14 +237,15 @@ def dosya_secici():
         islem_sayaci += 1
         guncel_id = islem_sayaci
         
-      
+        su_an = datetime.now().strftime("%H:%M")
+
         gecmis_hafizasi[guncel_id] = {
             "dosya_adi": dosya_adi,
+            "saat": su_an,
             "desifre": "İşlem devam ediyor veya metin yok...",
             "ozet": "İşlem devam ediyor veya özet yok..."
         }
         
-        su_an = datetime.now().strftime("%H:%M")
         
         
         btn_kayit = ctk.CTkButton(
@@ -160,6 +258,7 @@ def dosya_secici():
             command=lambda id=guncel_id: gecmis_detaya_git(id) 
         )
         btn_kayit.pack(fill="x", pady=5) 
+        hafizayi_diske_kaydet()
         
 
         islemi_arka_planda_baslat(dosya_yolu, guncel_id)
@@ -168,10 +267,14 @@ def dosya_secici():
 app.geometry("800x800")
 app.title("VNS: Akıllı Ses Deşifre Sistemi      ")
 
-sidebar_frame = ctk.CTkFrame(app, width=250, corner_radius=0, fg_color="#171821", border_color="#2d2e37", border_width=1)
+sidebar_frame = ctk.CTkFrame(app, width=250, corner_radius=0, fg_color=("#f8fafc", "#171821"), border_color=("#cbd5e1", "#2d2e37"), border_width=1)
 
 lbl_gecmis = ctk.CTkLabel(sidebar_frame, text="Geçmiş İşlemler", font=("Segoe UI", 16, "bold"), text_color="#bb9af7")
 lbl_gecmis.pack(pady=(60, 10))
+
+arama_kutusu = ctk.CTkEntry(sidebar_frame, placeholder_text="🔍 Geçmişte Ara...", border_color="#333333", fg_color="#1a1b26")
+arama_kutusu.pack(fill="x", padx=10, pady=(0, 10))
+arama_kutusu.bind("<KeyRelease>", gecmisi_filtrele)
 
 liste_gecmis = ctk.CTkScrollableFrame(sidebar_frame, fg_color="transparent")
 liste_gecmis.pack(fill="both", expand=True, padx=10, pady=(0, 20))
@@ -208,12 +311,20 @@ btn_menu.place(x=10, y=10)
 ana_baslik = ctk.CTkLabel(
     sag_icerik_alani, 
     text="VNS SES ANALİZ SİSTEMİ", 
-    text_color="#d1d4e0", 
+    text_color=("#000000", "#d1d4e0"),
     font=("Space Grotesk", 13, "bold"),
     
 )
+
+switch_tema = ctk.CTkSwitch(
+    sag_icerik_alani, text="🌞 Aydınlık", 
+    command=tema_degistir, progress_color="#bb9af7", 
+    font=("Segoe UI", 12, "bold")
+)
+switch_tema.pack(anchor="ne", padx=20, pady=(10, 0))
+
 ana_baslik.pack(pady=13)
-app.configure(fg_color="#202128")
+app.configure(fg_color=("#f1f5f9", "#202128"))
 
 ana_govde = ctk.CTkFrame(sag_icerik_alani, fg_color="transparent")
 ana_govde.pack(fill="both", expand=True, padx=30, pady=10)
@@ -223,10 +334,10 @@ sol_panel.pack(side="left", fill="both", expand=True, padx=10)
 
 txt_desifre = ctk.CTkTextbox(
     sol_panel, 
-    fg_color="#1a1b26", 
-    border_color="#333333", 
+    fg_color=("#ffffff", "#1a1b26"), 
+    border_color=("#cbd5e1", "#333333"), 
     border_width=1, 
-    text_color="#a9b1d6",
+    text_color=("#1e293b", "#a9b1d6"),
     corner_radius=4,
     wrap="word",          
     font=("Segoe UI", 13 , "bold") 
@@ -243,13 +354,13 @@ sag_panel.pack(side="left", fill="both", expand=True, padx=10)
 
 txt_ozet = ctk.CTkTextbox(
     sag_panel, 
-    fg_color="#1a1b26", 
-    border_color="#333333", 
+    fg_color=("#ffffff", "#1a1b26"),       
+    border_color=("#cbd5e1", "#333333"),   
     border_width=1, 
-    text_color="#a9b1d6",
+    text_color=("#1e293b", "#a9b1d6"),    
     corner_radius=4,
     wrap="word",          
-    font=("Segoe UI", 13 , "bold") 
+    font=("Segoe UI", 13 , "bold")
 )
 txt_ozet.pack(fill="both", expand=True)
 txt_ozet._textbox.configure(padx=15, pady=15)
@@ -258,7 +369,7 @@ txt_ozet.configure(state="disabled")
 lbl_ozet_baslik = ctk.CTkLabel(sag_panel, text="YAPAY ZEKA ÖZETİ", text_color="#bb9af7", font=("Segoe UI", 12, "bold"))
 lbl_ozet_baslik.pack(anchor="w", padx=5, pady=(0, 5))
 
-alt_bar = ctk.CTkFrame(sag_icerik_alani, fg_color="#1a1b26", border_color="#2d2e37", border_width=1, height=50, corner_radius=8)
+alt_bar = ctk.CTkFrame(sag_icerik_alani, fg_color=("#ffffff", "#1a1b26"), border_color=("#cbd5e1", "#2d2e37"), border_width=1, height=50, corner_radius=8)
 alt_bar.pack(fill="x", padx=40, pady=(10, 30))
 
 lbl_dosya_adi = ctk.CTkLabel(alt_bar, text="bir ses dosyası seçin...", text_color="#565f89", font=("Segoe UI", 11, "italic"))
@@ -290,7 +401,11 @@ lbl_baslik.pack(pady=(20, 10))
 txt_kvkk = ctk.CTkTextbox(kvkk_kutu, width=400, height=200, fg_color="#2d2e37", text_color="#a9b1d6", corner_radius=6, wrap="word")
 txt_kvkk.pack(padx=20, pady=10)
 
-ornek_metin = """Simge'nin hazırlayacağı KVKK metni buraya eklenecek...
+ornek_metin = """VNS – Veri Gizliliği ve Kullanıcı Bilgilendirmesi
+
+VNS, gizlilik odaklı bir çalışma prensibiyle tasarlanmıştır. Ses dosyalarınızın deşifre işlemi tamamen yerel makinenizde (Faster-Whisper) gerçekleştirilir ve ses verileriniz asla internete aktarılmaz.
+
+Analiz ve özetleme aşamasında ise sadece oluşturulan metin içeriği, güvenli bir API (Groq) üzerinden Llama 3 modeline iletilir. Bu süreçte hiçbir kişisel veri veya ses dosyası bulut sunucularına gönderilmemektedir. Devam ederek bu işlem sürecini ve veri gizliliği politikasını kabul etmiş sayılırsınız.
 
 Lütfen uygulamayı kullanabilmek için kişisel verilerinizin işlenmesine dair aydınlatma metnini okuyup onaylayınız. 
 
@@ -324,4 +439,5 @@ btn_onay = ctk.CTkButton(
 )
 btn_onay.pack(side="right", padx=10)
 kvkk_kutu.place(relx=0.5, rely=0.5, anchor="center")
+hafizayi_diskten_yukle()
 app.mainloop()
