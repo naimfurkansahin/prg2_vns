@@ -1,8 +1,22 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
-from dotenv import load_dotenv
+import io
 
-# Takım arkadaşlarımızın yazdığı modülleri içeri aktarıyoruz
+# --- KRİTİK: DİĞER IMPORTLARDAN ÖNCE YAPILMALI ---
+# Python'ı ve Windows Terminalini UTF-8 moduna zorla
+os.environ["PYTHONUTF8"] = "1"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+# OpenMP çakışma hatasını engelle
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+# Çıkışı zorla UTF-8 yap (Hataları önlemek için 'replace' modu eklendi)
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+from dotenv import load_dotenv
 from engine import VNSEngine
 import database
 from ui import VNSApp
@@ -18,31 +32,35 @@ def main():
 
     if not api_key:
         print("\n[KRİTİK HATA] GROQ_API_KEY bulunamadı!")
-        print("Lütfen projenin ana dizininde bir '.env' dosyası oluşturun ve içine şu satırı ekleyin:")
-        print("GROQ_API_KEY=sizin_api_anahtariniz_buraya")
-        sys.exit(1) # Anahtar yoksa programı güvenli bir şekilde kapat
+        print("Lütfen projenin ana dizininde bir '.env' dosyası oluşturun.")
+        sys.exit(1)
 
-    # 2. Veritabanını Hazırla (Melih'in Modülü)
+    # 2. Veritabanını Hazırla
     print("[Sistem] Veritabanı kontrol ediliyor...")
     try:
         database.create_tables()
         print("[Sistem] Veritabanı bağlantısı başarılı.")
     except Exception as e:
-        print(f"[HATA] Veritabanı oluşturulurken bir sorun yaşandı: {e}")
+        # repr(e) kullanarak o meşhur karakter hatasını bypass ediyoruz
+        print(f"[HATA] Veritabanı oluşturulurken bir sorun yaşandı: {repr(e)}")
         sys.exit(1)
 
-    # 3. Yapay Zeka Motorunu Başlat (Senin Modülün)
-    # Bilgisayarının gücüne göre "medium", "small" veya "base" yapabilirsin.
+    # 3. Yapay Zeka Motorunu Başlat
     print("[Sistem] Yapay Zeka Motoru yükleniyor, lütfen bekleyin...")
-    engine = VNSEngine(groq_api_key=api_key, model_size="medium", device="cpu")
+    # Güvenlik için engine başlatmayı try-except içine alıyoruz
+    try:
+        engine = VNSEngine(groq_api_key=api_key, model_size="medium", device="cpu")
+    except Exception as e:
+        print(f"[KRİTİK HATA] Motor başlatılamadı: {repr(e)}")
+        sys.exit(1)
 
-    # 4. Arayüzü Başlat ve Motoru Enjekte Et (Betül'ün Modülü)
+    # 4. Arayüzü Başlat
     print("[Sistem] Kullanıcı arayüzü başlatılıyor...")
     try:
         app = VNSApp(engine=engine)
         app.mainloop()
     except Exception as e:
-        print(f"\n[HATA] Arayüz başlatılırken kritik bir hata oluştu: {e}")
+        print(f"\n[HATA] Arayüz başlatılırken kritik bir hata oluştu: {repr(e)}")
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,17 @@
+# -*- coding: utf-8 -*-
 import customtkinter as ctk
 from tkinter import filedialog
 import threading
 import os
+import sys
+import io
 import database # Melih'in modülü
+
+# Çıkışı UTF-8 yapma
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 class VNSApp(ctk.CTk):
     def __init__(self, engine):
@@ -158,7 +167,7 @@ class VNSApp(ctk.CTk):
             
             # Veritabanına kaydet
             database.add_record(dosya_adi, tam_metin, ozet_metni)
-            self.gecmisi_veritabanindan_yukle() # Listeyi güncelle
+            self.after(0, self.gecmisi_veritabanindan_yukle) # Listeyi güncelle
             
             self.lbl_dosya_adi.configure(text="İşlem başarıyla tamamlandı!", text_color="#7aa2f7")
 

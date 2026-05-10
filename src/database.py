@@ -1,6 +1,18 @@
+# -*- coding: utf-8 -*-
 import sqlite3
 import os
+import sys
+import io
 from datetime import datetime
+
+# Çıkışı UTF-8 yapma
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+# SQLite UTF-8 desteği
+sqlite3.connect(':memory:').execute('PRAGMA encoding="UTF-8"')
 
 # Klasör ve veritabanı yolu
 DB_DIR = "data"
